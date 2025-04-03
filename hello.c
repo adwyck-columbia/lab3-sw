@@ -18,24 +18,26 @@
 int vga_ball_fd;
 
 /* Read and print the background color */
-void print_background_color() {
+void get_ball_coords(unsigned short *x, unsigned short *y) {
   vga_ball_arg_t vla;
   
-  if (ioctl(vga_ball_fd, VGA_BALL_READ_BACKGROUND, &vla)) {
-      perror("ioctl(VGA_BALL_READ_BACKGROUND) failed");
+  if (ioctl(vga_ball_fd, VGA_BALL_READ_BCOORDS, &vla)) {
+      perror("ioctl(VGA_BALL_READ_COORDS) failed");
       return;
   }
-  printf("%02x %02x %02x\n",
-	 vla.background.red, vla.background.green, vla.background.blue);
+  *x = vla.coords.x;
+  *y = vla.coords.y;
+  printf("Current ball coordinates: %u, %u\n", *x, *y);
 }
 
 /* Set the background color */
-void set_background_color(const vga_ball_color_t *c)
+void set_ball_coords(unsigned short x, unsigned short y)
 {
   vga_ball_arg_t vla;
-  vla.background = *c;
-  if (ioctl(vga_ball_fd, VGA_BALL_WRITE_BACKGROUND, &vla)) {
-      perror("ioctl(VGA_BALL_SET_BACKGROUND) failed");
+  vla.coords.x = x;
+  vla.coords.y = y;
+  if (ioctl(vga_ball_fd, VGA_BALL_WRITE_COORDS, &vla)) {
+      perror("ioctl(VGA_BALL_SET_COORDS) failed");
       return;
   }
 }
@@ -46,36 +48,35 @@ int main()
   int i;
   static const char filename[] = "/dev/vga_ball";
 
-  static const vga_ball_color_t colors[] = {
-    { 0xff, 0x00, 0x00 }, /* Red */
-    { 0x00, 0xff, 0x00 }, /* Green */
-    { 0x00, 0x00, 0xff }, /* Blue */
-    { 0xff, 0xff, 0x00 }, /* Yellow */
-    { 0x00, 0xff, 0xff }, /* Cyan */
-    { 0xff, 0x00, 0xff }, /* Magenta */
-    { 0x80, 0x80, 0x80 }, /* Gray */
-    { 0x00, 0x00, 0x00 }, /* Black */
-    { 0xff, 0xff, 0xff }  /* White */
-  };
+  unsigned short x =320, y= 240;
+  short vx = 2, vy = 1;
 
-# define COLORS 9
+  const unsigned short x_min = 20, x_max = 620; // horizontal boundaries
+  const unsigned short y_min = 20, y_max = 460; // vertical boundaries
 
+  
   printf("VGA ball Userspace program started\n");
+
 
   if ( (vga_ball_fd = open(filename, O_RDWR)) == -1) {
     fprintf(stderr, "could not open %s\n", filename);
     return -1;
   }
 
-  printf("initial state: ");
-  print_background_color();
+  while (1) {
+    set_ball_coords(x,y);
 
-  for (i = 0 ; i < 24 ; i++) {
-    set_background_color(&colors[i % COLORS ]);
-    print_background_color();
-    usleep(400000);
+    x += vx;
+    y += vy;
+
+    if(x <= x_min || x >= x_max) vx = -vx;
+
+    if(y <= y_min || y >= y_max) vy= -vy;
+    usleep(400000); //16000
   }
+
   
   printf("VGA BALL Userspace program terminating\n");
+  close(vga_ball_fd);
   return 0;
 }
