@@ -72,7 +72,7 @@ int main()
     if(x <= x_min || x >= x_max) vx = -vx;
 
     if(y <= y_min || y >= y_max) vy= -vy;
-    usleep(16000); //16000
+    usleep(22000); //16000
   }
 
   
